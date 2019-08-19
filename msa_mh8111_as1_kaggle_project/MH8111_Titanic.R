@@ -9,7 +9,7 @@ library('plyr')
 #install.packages("corrplot")
 library(corrplot)
 
-setwd("~/Desktop/MSA/msa_mh8111_as1_kaggle_project/")
+#setwd("~/Desktop/MSA/msa_mh8111_as1_kaggle_project/")
 Train <- read.csv("train.csv", header=TRUE,stringsAsFactors = FALSE, na.strings=c("", "NA"))
 Test <- read.csv("test.csv", header=TRUE,stringsAsFactors = FALSE, na.strings=c("", "NA"))
 
@@ -111,11 +111,14 @@ predM = init$predictorMatrix
 #remove PassengerId, Ticket column from the predicate
 predM[, c("PassengerId", "Ticket")]=0    
 imp<-mice(Train, m=5, predictorMatrix = predM)
+print(imp)
+summary(imp)
 Train1 <- complete(imp)
 summary(Train1)
 summary(is.na(Train1))
 
 summary(Train1)
+summary(Train1$Age)
 dim(Train1)
 
 #Handling missing data in Age Approach 2: 
@@ -128,15 +131,19 @@ AgeTrainLRSet <- Train[!is.na(Train$Age), ]
 
 #compute the correlation matrix to get top 5 features that most correlated to Age
 AgeTrain_LR <- AgeTrainLRSet[, c("Pclass","Sex","Age","FamilySize","PerPassengerFare","Embarked", "NoFare", "Title", "SocialClass")]
+summary(AgeTrain_LR)
 AgeTrain_LR <- AgeTrain_LR %>% mutate_if(is.factor, as.numeric)
 corVal <- round(abs(cor(AgeTrain_LR, method = c("pearson"))), 2)
+print(corVal)
 
 #find the top 5 features correlated with Age in the non-NA set
 top_5_cor_features <- sort(corVal["Age",], decreasing = TRUE)[2:6]
 print(top_5_cor_features)
 
 #finding a multi linear regression model with the five features
-ageFit <- lm(Age ~ Pclass + Title + FamilySize + SocialClass + PerPassengerFare, data = AgeTrainLRSet)
+#note the strong correlation between SocialClass and Title, so we drop SocialClass in the LM 
+AgeTrainLRSet$Title
+ageFit <- lm(Age ~ Pclass + Title + FamilySize + PerPassengerFare, data = AgeTrainLRSet)
 coeffs = coefficients(ageFit)
 print(coeffs)
 
@@ -145,7 +152,15 @@ print(coeffs)
 summary(ageFit)
 
 predRes <- predict(ageFit, AgeTrainToPredict)
+summary(predRes)
+print(predRes)
+#[Comments on MultiVariable linear regression] 
+###the age value we get from this model has negative values. 
+###he R-squared & Ajusted R-squared value is about 40%, the prediction accuracy is not promising, thus dropped. 
 
+
+
+#[TODO] based on predicted age, categrize it into age groups.. seems a valid feature. 
 
 #non-intuitive feature important
 # 1. feature important using random forest
