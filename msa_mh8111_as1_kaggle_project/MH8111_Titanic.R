@@ -201,3 +201,26 @@ model <- train(Survived~., data=Train1_2, trControl=control, importance=TRUE)
 featureImportance <- varImp(model)
 print(featureImportance)
 plot(featureImportance)
+
+#use Boruta
+requiredPackages <- c("Boruta", "mlbench")
+if (length(setdiff(requiredPackages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(requiredPackages, rownames(installed.packages())))  
+}
+
+# Libraries
+library(Boruta)  # Mythological God of forest, it based on random Forest
+
+library(mlbench)
+library(caret)
+library(randomForest)
+
+
+##################################################
+# Feature Selection with the Boruta algorithm
+##################################################
+set.seed(111)
+boruta <- Boruta(Survived ~ ., data = Train1, doTrace = 2, maxRuns = 500)
+
+print(boruta)
+plot(boruta)
