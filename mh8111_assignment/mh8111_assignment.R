@@ -2,9 +2,9 @@
 ############################ Filtering Spam SMS messages #############################
 ####################### From Machine Learning with R Chapter  ########################
 
-###########################################
+##########################################################
 ## Step 2: Data Exploration and Preparation
-###########################################
+##########################################################
 
 # load sms data into data frame
 sms_raw <- read.csv("sms_spam.csv", stringsAsFactors = FALSE)
