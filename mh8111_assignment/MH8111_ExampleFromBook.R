@@ -52,14 +52,14 @@ sms_raw_train <- sms_raw[1:4169, ]
 sms_raw_test  <- sms_raw[4170:5559, ]
 
 # check the proportion after split
-prop.table(table(sms_raw_train))
-prop.table(table(sms_raw_test))
+prop.table(table(sms_raw_train$type))
+prop.table(table(sms_raw_test$type))
 
 # load wordcloud library
 library(wordcloud)
 
 # view the word cloud of sms_corpus_train
-wordcloud(sms_corpus_train, min.freq = 40, random.order = FALSE)
+wordcloud(sms_corpus_clean, min.freq = 40, random.order = FALSE)
 
 # view the SPAM and HAM wordcloud
 spam <- subset(sms_raw_train, type == "spam")
