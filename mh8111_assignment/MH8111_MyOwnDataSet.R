@@ -53,7 +53,7 @@ adult_data = read.table("adult.data",
 
 # overview of the data
 dim(adult_data)
-View(head(adult_data))
+head(adult_data)
 str(adult_data)
 
 # find out the missing data info
@@ -410,6 +410,7 @@ CrossTable(test_pred, test_data$income,
 ## Step 6: Model Improvement
 ##########################################################
 
+# introducing Laplace smoothing parameter to the Naive Bayes classifier
 income_classifier2 <- naiveBayes(train_data, train_data$income, laplace = 1)
 
 test_pred2 <- predict(income_classifier2, test_data)
@@ -421,7 +422,7 @@ CrossTable(test_pred2, test_data$income,
            dnn = c('Predicted', 'Actual'))
 
 
-# After adding laplace, the model is definitely improved
+# After adding laplace smoothing, the model is definitely improved
 # the number of error prediction is reduced from 8 to 2
 
 # Total Observations in Table:  10162 
