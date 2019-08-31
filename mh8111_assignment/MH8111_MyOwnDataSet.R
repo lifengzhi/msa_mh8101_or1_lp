@@ -59,12 +59,16 @@ str(adult_data)
 # find out the missing data info
 summary(is.na(adult_data))
 
+# find out the missing data percentage
+sum(is.na(adult_data))/prod(dim(adult_data))
+
 # since the dataset size is considerably large comparing to the number of missing records
 # I just omit the missing data
 adult_data_full <- na.omit(adult_data)
 
 # check to make sure no missing data
 summary(is.na(adult_data_full))
+dim(adult_data_full)
 
 ######################################################################################
 ## Step 3: Feature Engineering
@@ -302,6 +306,7 @@ summary(adult_data_full$investment)
 
 summary(adult_data_full$hours_per_week)
 
+# LOOSE <20
 # NORMAL (20, 40], the normal range 
 # OVERTIME (40, 60)
 # INSANE >60
