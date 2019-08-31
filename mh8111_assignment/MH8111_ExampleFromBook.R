@@ -1,6 +1,6 @@
 ########################## Classification using Naive Bayes ##########################
 ############################ Filtering Spam SMS messages #############################
-####################### From Machine Learning with R Chapter  ########################
+####################### From Machine Learning with R Chapter 4 #######################
 
 ##########################################################
 ## Step 2: Data Exploration and Preparation
