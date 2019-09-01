@@ -13,24 +13,8 @@ library('tm')
 ## 1 Data Description
 ##########################################################################################
 
-Train <- read.csv("train.csv", header=TRUE,stringsAsFactors = FALSE, na.strings=c("", "NA"))
-Test <- read.csv("test.csv", header=TRUE,stringsAsFactors = FALSE, na.strings=c("", "NA"))
-
-str(Train)
-str(Test)
-
-Train$TableName <- 'TRAIN'
-Test$TableName <- 'TEST'
-Test$Survived <- NA
-
-TestPassengerId <- Test$PassengerId
-TestPassengerId
-
-All <- rbind(Train, Test)
-
-
-## Original features
-
+## Original Features
+#
 # Survived   : int   ---> Class Label
 # PassengerId: int  
 # Pclass     : int  
@@ -44,63 +28,58 @@ All <- rbind(Train, Test)
 # Cabin      : chr  
 # Embarked   : chr
 
+## Load both Train and Test data
+Train <- read.csv("train.csv", header=TRUE,stringsAsFactors = FALSE, na.strings=c("", "NA"))
+Test <- read.csv("test.csv", header=TRUE,stringsAsFactors = FALSE, na.strings=c("", "NA"))
+
+## Append new column in order to separate Train from Test
+Train$TableName <- 'TRAIN'
+Test$TableName <- 'TEST'
+Test$Survived <- NA
+
+## Backing up TestData's PassengerId for Kaggle Submission
+TestPassengerId <- Test$PassengerId
+
+## Bind Train & Test, and get ready for Data Exploration
+All <- rbind(Train, Test)
 summary(All)
 
 ##########################################################################################
 ## 2 Data Exploration and Missing Data
 ##########################################################################################
 
-## get the missing data info except class label column
+## Get the Missing Data information EXCEPT for the class label Survived
 AllExceptSurvived <- subset(All, select = c(-Survived))
 summary(is.na(AllExceptSurvived))
 
-## the following features are with missing data
+
+## Missing Data Summary
 # Age 263/1309
 # Fare 1/1309
 # Cabin 1014/1309
 # Embarked 2/1309
 
-## handling missing Fare
-TempFare <- All$Fare
-All$Fare[is.na(All$Fare)] <- median(TempFare, na.rm = TRUE)
 
-## confirm missing data handling of Fare
-summary(is.na(All$Fare))
+## Handling Missing Fare, we are going to fill it with the median value of Pclass 3
+TempPclass3Fare <- All[All$Pclass==3, ]$Fare
+All$Fare[is.na(All$Fare)] <- median(TempPclass3Fare, na.rm = TRUE)
 
-## handling missing Embarked, we are going to fill the missing Embarked with the most frequent value
-## as there are only 2 records missing, doesn't worth the effort digging into it
+
+## Handling Missing Embarked, we are going to fill them with the most frequent value
 TableEmbarkedFreq = count(All$Embarked)
 MostFreqEmbarkedValue = TableEmbarkedFreq$x[which(TableEmbarkedFreq$freq == max(TableEmbarkedFreq$freq))]
 All$Embarked[is.na(All$Embarked)] <- MostFreqEmbarkedValue
 
-## confirm missing data handling of Embarked
-summary(is.na(All$Embarked))
 
-## handling missing Cabin by converting into categorical based on assigned or not
-summary(is.na(All$Cabin))
+## Handling Missing Cabin by converting into categorical, is.na = UNASSIGNED, otherwise = ASSIGNED
 All$Cabin[!is.na(All$Cabin)] <- 'ASSIGNED'
 All$Cabin[is.na(All$Cabin)] <- 'UNASSIGNED'
 
-All$Cabin
 
-## confirm missing data handling of Cabin
-summary(is.na(All$Cabin))
-
-## Handling missing Age with MICE
-AgeMiceInit = mice(Train, maxit=0) 
-AgePredMatrix = AgeMiceInit$predictorMatrix
-
-# remove PassengerId, Ticket column from the predicate
-AgePredMatrix[, c("PassengerId", "Ticket")]=0    
-AgeImputation<-mice(All, m=5, predictorMatrix = AgePredMatrix)
-
-All <- complete(AgeImputation)
-
-# confirm missing data handling of Age
-summary(is.na(All$Age))
-
-## confirm that all missing data are handled
+## Up to this step, only Missing Age data is not handled yet
+## we will deal with Missing Age Handling later
 summary(is.na(All))
+
 
 ##########################################################################################
 ## 3 Feature Engineering
@@ -110,99 +89,105 @@ summary(is.na(All))
 ## 3.1 Generating new features
 ##########################################################################################
 
-## feature generation of the following
-#FamilySize
-#PerPassengerFare
-#Title
-#SocialStatus
-#PayNoFare
-#AgeGroup
-#CabinAssignment (already handled in Step 2 when handling missing Cabin data)
+## Generating the following New Features
+# FamilySize
+# PerPassengerFare
+# Title
+# SocialStatus
+# PayNoFare 
+# AgeGroup (Covered in section below when we handle missing Age data)
+# Cabin (we've changed the missing of Cabin feature from it's original entirely, it's practically a new feature)
 
-## generating FamilySize
+
+## Generating FamilySize
 All$FamilySize = All$SibSp + All$Parch + 1
 
-## generating PerPassengerFare
+
+## Generating PerPassengerFare
 All$PerPassengerFare = All$Fare / (All$SibSp + All$Parch + 1)
 All$PerPassengerFare <- round(All$PerPassengerFare)
 
-## generating Title based on Name
+
+## Generating Title from Name
 All$Title <- gsub('(.*, )|(\\..*)', '', All$Name) 
 commoner_title <- c('Dona', 'Don', 'Miss','Mlle','Mme','Mr','Mrs','Ms')
 royalty_title <- c('Lady', 'the Countess', 'Sir', 'Jonkheer', 'Master')
 rank_title <- c('Capt', 'Col', 'Dr', 'Major', 'Rev')
 
-## generating Social Class based on Title
+
+## Generating SocialClass based on Title
 All$SocialClass[All$Title %in% commoner_title] <- 'commoner' 
 All$SocialClass[All$Title %in% royalty_title] <- 'royal'
 All$SocialClass[All$Title %in% rank_title] <- 'rank'
 
-## generating NoFare, those with zero Fare, probably suggesting Crew or VIP
-All$PayNoFare <- (All$PerPassengerFare < 0.01)
 
-## generating AgeGroup based on Age
+## Generating NoFare, those with Fare value of zero, probably Crews or VIPs
+All$PayNoFare <- (All$PerPassengerFare < 0.0001)
 
-table(All$Age)
-#Age<=5       Toddler
-#5<Age<=16    Child
-#16<Age<=36   YoungAdult
-#36<Age<=55   Adult
-#Age>55       Senior
 
-All$AgeGroup <- NA
+##########################################################################################
+## 3.2 Dropping Apparent Redundant and Irrelevant Features
+##########################################################################################
 
-for (i in 1:nrow(All))
-{
-  if (All[i,]$Age <= 5)
-  {
-    All[i,]$AgeGroup = "Toddler"
-  }
-  else if (All[i,]$Age > 5 && All[i,]$Age <=16)
-  {
-    All[i,]$AgeGroup = "Child"
-  }
-  else if (All[i,]$Age > 16 && All[i,]$Age <=36)
-  {
-    All[i,]$AgeGroup = "YoungAdult"
-  }
-  else if (All[i,]$Age > 36 && All[i,]$Age <=55)
-  {
-    All[i,]$AgeGroup = "Adult"
-  }
-  else
-  {
-    All[i,]$AgeGroup = "Senior"
-  }
+## The following features are dropped
+# Fare   as we have the PerPassengerFare
+# SibSp  as we have the FamilySize
+# Parch  as we have the FamilySize
+# Name   
+# Passenger ID
+# Ticket
+All <- subset(All, select = -c(Fare, SibSp, Parch, Name, PassengerId, Ticket))
+
+
+##########################################################################################
+## 3.3 Age Missing Data Handling & New AgeGroup Feature Generation
+##########################################################################################
+
+## Handling missing Age with MICE
+AgeMiceInit = mice(All, maxit=0) 
+AgePredMatrix = AgeMiceInit$predictorMatrix
+AgeImputation<-mice(All, m=5, predictorMatrix = AgePredMatrix)
+All <- complete(AgeImputation)
+
+
+# Confirm all missing data are handled
+summary(is.na(All))
+
+
+## Generating AgeGroup based on Age
+# Age<12       YoungChildren
+# 12<=Age<21   ChildrenAndYoungAdult
+# 21<=Age<30   Adult
+# 30<=Age<50   MiddleAgedAdult
+# Age>=50      SeniorAdult
+All$AgeGroup[All$Age <12] <-                  'YoungChildren'
+All$AgeGroup[All$Age >= 12 & All$Age < 21] <- 'ChildrenAndYoungAdult'
+All$AgeGroup[All$Age >=21  & All$Age < 30] <- 'Adult'
+All$AgeGroup[All$Age >=30  & All$Age < 50] <- 'MiddleAgedAdult'
+All$AgeGroup[All$Age >=50] <-                 'SeniorAdult'
+
+
+## Dropping Age as we have AgeGroup now
+All <- subset(All, select = -c(Age))
+
+
+##########################################################################################
+## 3.4 Feature importance with Boruta
+##########################################################################################
+
+## Install and Load library packages
+requiredPackages <- c("Boruta", "mlbench")
+if (length(setdiff(requiredPackages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(requiredPackages, rownames(installed.packages())))  
 }
 
-summary(as.factor(All$AgeGroup))
-
-## generating new Cabin feature
-# already done in Step 2
-
-##########################################################################################
-## 3.2 Dropping features
-##########################################################################################
-
-## the following features are dropped
-#Fare   as we have the PerPassengerFare
-#SibSp  as we have the FamilySize
-#Parch  as we have the FamilySize
-#Age    as we have the AgeGroup
-#Name   
-#Passenger ID
-#Ticket
-
-All <- subset(All, select = -c(Fare, SibSp, Parch, Age, Name, PassengerId, Ticket))
+library(Boruta)
+library(mlbench)
+library(caret)
+library(randomForest)
 
 
-##########################################################################################
-## 3.2 Feature importance
-##########################################################################################
-
-AllExceptTableNameAndSurvived <- subset(All, select = c(-Survived, -TableName))
-summary(AllExceptTableNameAndSurvived)
-
+## Converting to factor 
 All$Pclass <- as.factor(All$Pclass)
 All$Sex <- as.factor(All$Sex)
 All$Cabin <- as.factor(All$Cabin)
@@ -214,71 +199,156 @@ All$PayNoFare <- as.factor(All$PayNoFare)
 All$AgeGroup <- as.factor(All$AgeGroup)
 All$Survived <- as.factor(All$Survived)
 
-##########################################################################################
-## 3.2.1 Boruta
-##########################################################################################
-requiredPackages <- c("Boruta", "mlbench")
-if (length(setdiff(requiredPackages, rownames(installed.packages()))) > 0) {
-  install.packages(setdiff(requiredPackages, rownames(installed.packages())))  
-}
 
-# Libraries
-library(Boruta)  # Mythological God of forest, it based on random Forest
-library(mlbench)
-library(caret)
-library(randomForest)
+## TableName is the column we added to separate Train from Test data. Hence removing it to run feature importance
+BorutaAllExceptTableName <- subset(All, select = c(-TableName))
 
-AllExceptTableName <- subset(All, select = c(-TableName))
-
+## Running Boruta
 set.seed(111)
-boruta <- Boruta(Survived ~ ., data = AllExceptTableName, doTrace = 2, maxRuns = 300)
-print(boruta)
+boruta <- Boruta(Survived ~ ., data = BorutaAllExceptTableName, doTrace = 2, maxRuns = 300)
 
+## Plotting feature importance
 plot(boruta, las = 2, cex.axis = 0.7)
-attStats(boruta)   # attribute statistics
 
 ##########################################################################################
-## 3.2.2 Random Forest 
+## 3.5 Feature importance with Random Forest
 ##########################################################################################
 
-AllExceptTableName <- subset(All, select = c(-TableName))
+## TableName is the column we added to separate Train from Test data. Hence removing it to run feature importance
+RandomForestAllExceptTableName <- subset(All, select = c(-TableName))
 
-RandomForestImportance <- randomForest(Survived ~ .,
-                         data = AllExceptTableName,
-                         importance = TRUE)
+## Running RandomForest
+RandomForestImportance <- randomForest(Survived ~ ., data = RandomForestAllExceptTableName, importance = TRUE)
 
+## Exploring feature importance
 RandomForestImportance$confusion
-FeatureImportance <- varImpPlot(RandomForestImportance, sort = T, n.var = 10, main = "Top 10 - Variable Importance")
+varImpPlot(RandomForestImportance, sort = T, n.var = 10, main = "Top 10 - Variable Importance")
+
+
+##########################################################################################
+## 3.6 Feature Dropping after Boruta and RandomForest
+##########################################################################################
+
+## Both Boruta and RandomForest shows that the new feature PayNoFare we created is NOT important
+## that's probably because there are so few records with PayNoFare=TRUE, and I don't think Titianic only
+## has 17 Crews and VIPs if it's the real situation. Anyway, we respect the feature importance results, 
+## hence, PayNoFare is dropped
+All <- subset(All, select = -c(PayNoFare))
+
+
+##########################################################################################
+## 3.7 Feature Correlation with Pearson Correlation Matrix
+##########################################################################################
+
+## Removing class label Survived and our irrelevant TableName
+CorMatrixAllExceptTableNameAndSurvived <- subset(All, select = c(-Survived, -TableName))
+
+
+## Running Pearson Correlation among remaining features
+CorMatrixAllExceptTableNameAndSurvived <- lapply(CorMatrixAllExceptTableNameAndSurvived, as.integer)
+CorMatrixAllExceptTableNameAndSurvived <- as.data.frame(CorMatrixAllExceptTableNameAndSurvived)
+CorMatrix <- round(abs(cor(CorMatrixAllExceptTableNameAndSurvived, method = c("pearson"))), 2)
+CorMatrix
+
+
+## Plot the Correlation Matrix Among Attributes
+corrplot(CorMatrix, type = "upper", order = "hclust", tl.col = "black", tl.srt = 45)
+
+##########################################################################################
+## 3.8 Feature Dropping after Pearson Correlation Matrix
+##########################################################################################
+
+## Observe that the following Pairs demonstrate strong correlations >0.5
+# FamilySize & SocialClass
+# Pclass & Cabin
+# PerPassengerFare & PClass
+# Title & SocialClass
+
+## At this stage, since both Title and SocialClass are new features created by us and
+## SocialClass is created on top of Title, hence the expected correlation. We are confident to
+## drop Title here. 
+All <- subset(All, select = -c(Title))
 
 
 ##########################################################################################
 ## 4 Training & Prediction & Evaluation
 ##########################################################################################
 
-## Ready the data for modeling
+##########################################################################################
+## 4.1 Ready the data before running any Model
+##########################################################################################
 
-table(All$TableName)
-
-# please use Train_To_Use for the training and validation
+## Getting back the Train data with the TableName we created
 Train_Data <- All[All$TableName=='TRAIN', ]
 
-# Used for Kaggle submission
+
+## Getting back the Test data with the TableName we created
 Test_Data <- All[All$TableName=='TEST', ]
 
+
+## Retiring TableName as it's served its purpose
 Train_Data <- subset(Train_Data, select = c(-TableName))
 Test_Data <- subset(Test_Data, select = c(-TableName))
 
-# Split the Train into Train and Test set
+##########################################################################################
+## 4.2 This BLOCK is reserved for Jiang Lei's Modeling, please don't trespass
+##########################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+##########################################################################################
+## 4.3 This BLOCK is reserved for Ming Xiu's Modeling, please don't trespass
+##########################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+##########################################################################################
+## 4.4 This BLOCK is reserved for Yew Wing's Modeling, please don't trespass
+##########################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##########################################################################################
+## 4.5 Fengzhi: Naive Bayes Classification
+##########################################################################################
+
+## Quick simple split data into 2/3 and 1/3
 Train_Train <- Train_Data[1:599,]
 Train_Test <- Train_Data[600:891,]
 
 # check on the split proportion, they are roughly the same
 prop.table(table(Train_Train$Survived))
 prop.table(table(Train_Test$Survived))
-
-##########################################################################################
-## 4.1 Naive Bayes Classification
-##########################################################################################
 
 ## build Naive Bayes model by Laplace smoothing
 library(e1071)
@@ -426,9 +496,28 @@ attach(RoundedResultSdf1)
 table(Prediction_1, Actual_1)
 
 
-###### TODO:
+
+###### Code TODO (Fengzhi to Share tonight):
 #1. Bring MX's AgeGroup
 #2. Drop PayNoFare
 #3. Drop SocialClass
 #4. Run's AGE imp after feature engineering
   ## Final selected Feature set except Age itself
+
+## boosting of models
+  # cross validation
+  # Caret & XGBoost
+
+####### Slides:
+  #MX: Problem statement, Data Description, Data Exploration, Data Imputation 2.5min
+  #JL: Feature Generation & Feature Dropping & Feature Selection 2.5 min
+  #YW: Feature Importance + RandomForest, NN, Logistic Regression 2.5 min
+  #FZ: NB, DesicionTree, KNN, Kaggle Summary(score summary of different models) 2.5
+
+###### Reports
+  # MX: create Google Doc
+  # All: for each model, attach the report to the same Google Doc (chart, statistics, results and discussion)
+  # Problem Stat, Data Des, Data Exp => MX
+  # Feature selection & dropping ==> JL
+  # Summary of Feature Importance(rf, boruta) ==> FZ
+  # Kaggle Submission Summary & Possible/future improvement
