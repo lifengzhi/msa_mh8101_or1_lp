@@ -74,8 +74,11 @@ All$Embarked[is.na(All$Embarked)] <- MostFreqEmbarkedValue
 summary(is.na(All$Embarked))
 
 ## handling missing Cabin by converting into categorical based on assigned or not
-All$Cabin[is.na(All$Cabin)] <- 'UNASSIGNED'
+summary(is.na(All$Cabin))
 All$Cabin[!is.na(All$Cabin)] <- 'ASSIGNED'
+All$Cabin[is.na(All$Cabin)] <- 'UNASSIGNED'
+
+All$Cabin
 
 ## confirm missing data handling of Cabin
 summary(is.na(All$Cabin))
@@ -221,12 +224,11 @@ library(mlbench)
 library(caret)
 library(randomForest)
 
-set.seed(111)
-boruta <- Boruta(Survived ~ ., data = All, doTrace = 2, maxRuns = 500)
-print(boruta)
+AllExceptTableName <- subset(All, select = c(-TableName))
 
-plot(boruta)
-# We cannot see each feature clear
+set.seed(111)
+boruta <- Boruta(Survived ~ ., data = AllExceptTableName, doTrace = 2, maxRuns = 300)
+print(boruta)
 
 plot(boruta, las = 2, cex.axis = 0.7)
 attStats(boruta)   # attribute statistics
@@ -237,25 +239,12 @@ attStats(boruta)   # attribute statistics
 
 AllExceptTableName <- subset(All, select = c(-TableName))
 
-rf_model <- randomForest(Survived ~ .,
+RandomForestImportance <- randomForest(Survived ~ .,
                          data = AllExceptTableName,
                          importance = TRUE)
 
-
-rf_model$confusion
-featureImportance <- varImpPlot(rf_model, sort = T, n.var = 10, main = "Top 10 - Variable Importance")
-plot(featureImportance)
-attributes(rf_model)
-##????
-##importance(rf_model)
-
-##########################################################################################
-## 3.2.3 Correlation Matrix 
-##########################################################################################
-
-
-
-
+RandomForestImportance$confusion
+FeatureImportance <- varImpPlot(RandomForestImportance, sort = T, n.var = 10, main = "Top 10 - Variable Importance")
 
 
 ##########################################################################################
@@ -286,7 +275,7 @@ prop.table(table(Train_Test$Survived))
 ## 4.1 Naive Bayes Classification
 ##########################################################################################
 
-## build Naive Bayes model
+## build Naive Bayes model by Laplace smoothing
 library(e1071)
 survival_classifier <- naiveBayes(Train_Train, Train_Train$Survived, laplace = 1)
 
@@ -315,97 +304,106 @@ library(dplyr)
 library(magrittr)
 library(neuralnet)
 
+#back it up first
+Train_Train2 <- Train_Train
+Train_Test2 <- Train_Test
 
+Train_Train$Pclass <- as.integer(Train_Train$Pclass)
+Train_Train$Sex <- as.integer(Train_Train$Sex)
+Train_Train$Cabin <- as.integer(Train_Train$Cabin)
+Train_Train$Embarked <- as.integer(Train_Train$Embarked)
+Train_Train$FamilySize <- as.integer(Train_Train$FamilySize)
+Train_Train$Title <- as.integer(Train_Train$Title)
+Train_Train$SocialClass <- as.integer(Train_Train$SocialClass)
+Train_Train$PayNoFare <- as.integer(Train_Train$PayNoFare)
+Train_Train$AgeGroup <- as.integer(Train_Train$AgeGroup)
+Train_Train$PerPassengerFare <- as.integer(Train_Train$PerPassengerFare)
 
-################################
-Train_Train1 <- Train_Train
+Train_Train$Survived <- as.integer(Train_Train$Survived)
 
-summary(is.factor(Train_Train1$Sex))
+Train_Test$Pclass <- as.integer(Train_Test$Pclass)
+Train_Test$Sex <- as.integer(Train_Test$Sex)
+Train_Test$Cabin <- as.integer(Train_Test$Cabin)
+Train_Test$Embarked <- as.integer(Train_Test$Embarked)
+Train_Test$FamilySize <- as.integer(Train_Test$FamilySize)
+Train_Test$Title <- as.integer(Train_Test$Title)
+Train_Test$SocialClass <- as.integer(Train_Test$SocialClass)
+Train_Test$PayNoFare <- as.integer(Train_Test$PayNoFare)
+Train_Test$AgeGroup <- as.integer(Train_Test$AgeGroup)
+Train_Test$PerPassengerFare <- as.integer(Train_Test$PerPassengerFare)
 
-Train_Train1$Pclass <- as.numeric(Train_Train1$Pclass)
-Train_Train1$Sex <- as.numeric(levels(Train_Train1$Sex))[Train_Train1$Sex] 
+Train_Test$Survived <- as.integer(Train_Test$Survived)
 
-Train_Train1$Cabin <- as.numeric(Train_Train1$Cabin)
-Train_Train1$Embarked <- as.numeric(Train_Train1$Embarked)
-Train_Train1$FamilySize <- as.numeric(Train_Train1$FamilySize)
-Train_Train1$Title <- as.numeric(Train_Train1$Title)
-Train_Train1$SocialClass <- as.numeric(Train_Train1$SocialClass)
-Train_Train1$PayNoFare <- as.numeric(Train_Train1$PayNoFare)
-Train_Train1$AgeGroup <- as.numeric(Train_Train1$AgeGroup)
-Train_Train1$Survived <- as.numeric(Train_Train1$Survived)
+Train_Train$Pclass
+Train_Train$Sex
+Train_Train$Cabin
+Train_Train$Embarked
+Train_Train$FamilySize
+Train_Train$Title
+Train_Train$SocialClass
+Train_Train$PayNoFare
+Train_Train$AgeGroup
+Train_Train$PerPassengerFare
+Train_Train$Survived
 
-is.factor(Train_Train)
+Train_Test$Pclass
+Train_Test$Sex
+Train_Test$Cabin
+Train_Test$Embarked
+Train_Test$FamilySize
+Train_Test$Title
+Train_Test$SocialClass
+Train_Test$PayNoFare
+Train_Test$AgeGroup
+Train_Test$PerPassengerFare
+Train_Test$Survived
+
+  
 # Neural Network Model Building
-# 4 layers: 1 input, 1 output, 2 hidden
-survival_NNet <- neuralnet(Survived ~ ., # 1 vs 13
-                     data = Train_Train,     # we use all the mydata to build this model
-                     hidden = c(10,5),  # two hidden layers, with 10 neuros in first while 5 neuros in second hidden layer
-                     linear.output = F,
-                     lifesign = 'full',
-                     rep=1)
+survival_NNet <- neuralnet(Survived ~ ., # 1 vs 10
+                          data = Train_Train)
 
-# Visualization
-plot(survival_NNet)
 
 plot(survival_NNet,
      col.hidden = 'red',
      col.hidden.synapse = 'darkgreen',
      show.weights = F,
      information = F,
-     fill = 'lightblue')  #node filling color
+     fill = 'lightblue')
 
+Train_Test_Except_Survived <- subset(Train_Test, select=c(-Survived))
+NNet_Results <- compute(survival_NNet, Train_Test_Except_Survived)
 
+Results <- data.frame(Actual = Train_Test$Survived, Prediction = NNet_Results$net.result)
 
-plot(NNmodel,
+RoundedResults<-sapply(Results, round, digits=0)
+RoundedResultSdf=data.frame(RoundedResults)
+attach(RoundedResultSdf)
+
+table(Prediction, Actual)
+
+### Improving NN by adding more hidden layers
+survival_NNet1 <- neuralnet(Survived ~ ., # 1 vs 10
+                            data = Train_Train,
+                            hidden=5,
+                            stepmax=1e6)
+
+plot(survival_NNet1,
      col.hidden = 'red',
      col.hidden.synapse = 'darkgreen',
      show.weights = F,
      information = F,
-     fill = 'burlywood') #node filling color
+     fill = 'lightblue')
+
+NNet_Results1 <- compute(survival_NNet1, Train_Test_Except_Survived)
+NNet_Pred1 <- NNet_Results1$net.result
+
+Results1 <- data.frame(Actual_1 = Train_Test$Survived, Prediction_1 = NNet_Results1$net.result)
+
+RoundedResults1<-sapply(Results1, round, digits=0)
+RoundedResultSdf1=data.frame(RoundedResults1)
+attach(RoundedResultSdf1)
+table(Prediction_1, Actual_1)
 
 
 
-
-
-
-requiredPackages <- c("Boruta", "mlbench")
-if (length(setdiff(requiredPackages, rownames(installed.packages()))) > 0) {
-  install.packages(setdiff(requiredPackages, rownames(installed.packages())))  
-}
-
-# Libraries
-library(Boruta)  # Mythological God of forest, it based on random Forest
-# It main idea
-# For each feature, it generates a shadow feature which has all the values 
-# shuffled across to introduce randomness. Then, it creates classification
-# models using orginal features and shadow feature. Then access the importance
-# of each feature. The basic idea is that if a feature is not doing better
-# than shadow attribute, then it is not important and should remove the 
-# feature from the model. 
-
-library(mlbench)
-library(caret)
-library(randomForest)
-
-
-##################################################
-# Feature Selection with the Boruta algorithm
-##################################################
-set.seed(111)
-boruta <- Boruta(Survived ~ ., data = Train_To_Use, doTrace = 2, maxRuns = 500)
-#"." means all the 60 variables
-# doTrace: verbosity level. 0 means no tracing, 
-# 1 means reporting decision about each attribute as soon as it is justified, 
-# 2 means the same as 1, plus reporting each importance source run, 
-# 3 means the same as 2, plus reporting of hits assigned to yet undecided attributes.
-
-
-print(boruta)
-
-plot(boruta)
-# We cannot see each feature clear
-
-plot(boruta, las = 2, cex.axis = 0.7)
-Makedecision <- TentativeRoughFix(boruta)  # help us to make quick decision
-print(Makedecision)
-attStats(boruta)   # attribute statistics
