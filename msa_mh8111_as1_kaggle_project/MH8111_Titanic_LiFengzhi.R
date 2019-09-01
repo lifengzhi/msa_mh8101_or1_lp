@@ -23,6 +23,9 @@ Train$TableName <- 'TRAIN'
 Test$TableName <- 'TEST'
 Test$Survived <- NA
 
+TestPassengerId <- Test$PassengerId
+TestPassengerId
+
 All <- rbind(Train, Test)
 
 
@@ -139,6 +142,7 @@ All$PayNoFare <- (All$PerPassengerFare < 0.01)
 
 ## generating AgeGroup based on Age
 
+table(All$Age)
 #Age<=5       Toddler
 #5<Age<=16    Child
 #16<Age<=36   YoungAdult
@@ -262,6 +266,7 @@ Train_Data <- All[All$TableName=='TRAIN', ]
 Test_Data <- All[All$TableName=='TEST', ]
 
 Train_Data <- subset(Train_Data, select = c(-TableName))
+Test_Data <- subset(Test_Data, select = c(-TableName))
 
 # Split the Train into Train and Test set
 Train_Train <- Train_Data[1:599,]
@@ -288,6 +293,21 @@ CrossTable(test_pred, Train_Test$Survived,
            prop.r = FALSE,
            dnn = c('Predicted', 'Actual'))
 
+# try the real thing
+survival_classifier <- naiveBayes(Train_Data, Train_Data$Survived, laplace = 1) 
+
+summary(Test_Data)
+
+real_test_pred <- predict(survival_classifier, Test_Data)
+TestSurvivedLabel <- Test_Data$Survived
+
+PassengerId <- TestPassengerId
+Survived <- TestSurvivedLabel
+
+submission_naivebayes <- data.frame(PassengerId, Survived)
+submission_naivebayes
+
+write.csv(submission_naivebayes, file="gender_submission1.csv")
 
 ##########################################################################################
 ## 4.2 NN Model
@@ -406,4 +426,9 @@ attach(RoundedResultSdf1)
 table(Prediction_1, Actual_1)
 
 
-
+###### TODO:
+#1. Bring MX's AgeGroup
+#2. Drop PayNoFare
+#3. Drop SocialClass
+#4. Run's AGE imp after feature engineering
+  ## Final selected Feature set except Age itself
