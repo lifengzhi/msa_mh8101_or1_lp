@@ -403,7 +403,6 @@ PassengerId <- TestPassengerId
 Survived <- real_test_pred
 
 submission_naivebayes <- data.frame(PassengerId, Survived)
-submission_naivebayes
 
 ## Write into submission file
 write.csv(submission_naivebayes, file="gender_submission_naivebayes.csv")
@@ -487,7 +486,6 @@ PassengerId <- TestPassengerId
 Survived <- RealPredResult
 
 submission_neuralnet <- data.frame(PassengerId, Survived)
-submission_neuralnet
 
 ## Write into submission file
 write.csv(submission_neuralnet, file="gender_submission_neuralnet.csv")
@@ -499,12 +497,6 @@ write.csv(submission_neuralnet, file="gender_submission_neuralnet.csv")
 ## End of Modeling Section
 ##########################################################################################
 
-
-
-
-## boosting of models
-  # cross validation
-  # Caret & XGBoost
 
 ####### Slides:
   #MX: Problem statement, Data Description, Data Exploration, Data Imputation 2.5min
