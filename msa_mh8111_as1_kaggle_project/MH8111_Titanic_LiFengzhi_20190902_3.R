@@ -483,7 +483,7 @@ RealPredResult[RealPredResult == 2] <- 1
 
 ## Group the two columns into Kaggle Submission required format
 PassengerId <- TestPassengerId
-Survived <- RealPredResult
+Survived <- RealPredResult0.77511
 
 submission_neuralnet <- data.frame(PassengerId, Survived)
 
