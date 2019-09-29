@@ -1,3 +1,8 @@
+# use the following command to install the required python libaries if you are using pip3
+# pip3 install panda
+# pip3 install pymysql
+# pip3 install sqlalchemy
+
 import pandas as pd
 import pymysql
 from sqlalchemy import create_engine as ce
@@ -40,5 +45,16 @@ print(dataframe_superstore)
 
 dataframe_superstore.to_sql('global_superstore', sqlengine, index=False, if_exists='fail')
 
-# check from mysql side to see whether table's created
+# check from mysql side, you should see something similar to below
 
+#mysql> show tables;
+#+-------------------+
+#| Tables_in_mh6142  |
+#+-------------------+
+#| global_superstore |
+#| test_abc          |
+#| test_def          |
+#+-------------------+
+#3 rows in set (0.00 sec)
+
+#mysql> 
